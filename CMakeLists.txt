@@ -3,4 +3,8 @@ project(NaiveTaskDistributionSystem)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(NaiveTaskDistributionSystem main.cpp)
+
+include_directories(Client/src Server/src)
+
+add_executable(Client Client/src/main.cpp)
+add_executable(Server Server/src/main.cpp)
