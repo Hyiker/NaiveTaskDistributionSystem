@@ -1,0 +1,14 @@
+//
+// Created by SidHCH on 2020/6/5.
+//
+
+#ifndef NAIVETASKDISTRIBUTIONSYSTEM_SERVER_HPP
+#define NAIVETASKDISTRIBUTIONSYSTEM_SERVER_HPP
+
+#include <boost/asio.hpp>
+
+class server {
+
+};
+
+#endif //NAIVETASKDISTRIBUTIONSYSTEM_SERVER_HPP
