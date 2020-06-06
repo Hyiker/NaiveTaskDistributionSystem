@@ -6,6 +6,7 @@
 #define NAIVETASKDISTRIBUTIONSYSTEM_CLIENT_HPP
 
 #include <boost/asio.hpp>
+#include <request.hpp>
 
 /* 套接客户端 直接使用tcp连接 */
 class client {
@@ -29,21 +30,14 @@ public:
     }
 
     /*
-     * 发送数据包，
-     * 通过\n作为分隔符
+     * 发送数据包，格式
      * 获取所有的数据信息
      * */
-    void send(char *data, size_t size) {
-        if (data[size - 1] != '\n') {
-            char data_[size + 1];
-            memcpy(data_, data, size);
-            data_[size] = '\n';
-            socket.send(boost::asio::buffer(data_, size));
-        } else {
-            socket.send(boost::asio::buffer(data, size));
-        }
+    void send(request *req) {
+        char data_with_size[req->size];
+        req->serialize(data_with_size);
+        socket.send(boost::asio::buffer(data_with_size, req->size));
     }
-
 };
 
 #endif //NAIVETASKDISTRIBUTIONSYSTEM_CLIENT_HPP

@@ -6,57 +6,59 @@
 #define NAIVETASKDISTRIBUTIONSYSTEM_TASK_HPP
 
 #include <string>
-#include <cstring>
-#include <iostream>
+#include <utility>
+#include <vector>
+#include <serializable.hpp>
 
 /*
- * task结构体
- * 负责实现task信息的保存与序列化、反序列化
+ * 负责实现任务信息的保存与序列化、反序列化
  */
-struct task {
-    /* 任务文件的id，占四个字节 */
-    uint32_t file_id;
-    /* 任务文件的大小，单位为字节，占八个字节 */
-    uint64_t file_size;
-    /* 文件的签名，进行安全性核验，占八个字节 */
-    std::string signature;
-    /* 发送时间戳，占八个字节 */
-    uint64_t timestamp;
-    /* 总大小为28B */
-    const int BYTE_SIZE = sizeof(char);
+struct task : public serializable {
+    /* 任务的id */
+    uint32_t id;
+    /* 任务文件的数量 */
+    uint32_t file_number;
+    /* 任务所需要的文件，因为可能有多个所以使用vector保存 */
+    std::vector<uint32_t> files;
+    /* 对于任务的描述长度 */
+    uint32_t description_size;
+    /* 对于任务的描述 */
+    std::string description;
 
-    task(uint32_t file_id, uint64_t file_size, std::string signature, uint64_t timestamp) : file_id{file_id},
-                                                                                            file_size{file_size},
-                                                                                            signature{std::move(
-                                                                                                    signature)},
-                                                                                            timestamp{timestamp} {
+    /* struct_size组成: type+id+file_number+files+description_size+description */
+    task(int id, int file_number, std::vector<uint32_t> files, int description_size, std::string &description)
+            : id(id), file_number(file_number), files(std::move(files)), description_size(description_size),
+              description(description),
+              serializable(4 + 4 + 4 + file_number * 4 + 4 + description_size, data_type::TASK) {
 
     }
 
-    /* 反序列化data字节流 */
-    explicit task(char *data) {
-        memcpy(&file_id, data, 4 * BYTE_SIZE);
-        memcpy(&file_size, data + 4, 8 * BYTE_SIZE);
-        char tmp[16];
-        memcpy(tmp, data + 12, 8 * BYTE_SIZE);
-        signature = tmp;
-        memcpy(&timestamp, data + 20, 8 * BYTE_SIZE);
+    task(const char *src, uint32_t size) : serializable(size, data_type::TASK) {
+        memcpy(&id, src + 4, 4);
+        memcpy(&file_number, src + 8, 4);
+        for (int i = 0; i < file_number; ++i) {
+            uint32_t fn;
+            memcpy(&fn, src + 12 + i * 4, 4);
+            files.push_back(fn);
+        }
+        memcpy(&description_size, src + 12 + file_number * 4, 4);
+        char buffer[256];
+        memcpy(buffer, src + 16 + file_number * 4, description_size);
+        buffer[description_size] = '\0';
+        description = buffer;
     }
 
-    /* 序列化为data字节流 */
-    void serialize(char *const dest) {
-        memcpy(dest, &file_id, 4 * BYTE_SIZE);
-        memcpy(dest + 4, &file_size, 8 * BYTE_SIZE);
-        memcpy(dest + 12, signature.c_str(), 8 * BYTE_SIZE);
-        memcpy(dest + 20, &timestamp, 8 * BYTE_SIZE);
-    }
 
-    friend std::ostream &operator<<(std::ostream &os, task &tsk) {
-        os << "file_id: " << tsk.file_id << '\n'
-           << "file_size: " << tsk.file_size << '\n'
-           << "signature: " << tsk.signature << '\n'
-           << "timestamp: " << tsk.timestamp;
-        return os;
+    void serialize(char *const dest) override {
+        int tp = static_cast<int>(type);
+        memcpy(dest, &tp, 4);
+        memcpy(dest + 4, &id, 4);
+        memcpy(dest + 8, &file_number, 4);
+        for (int i = 0; i < file_number; ++i) {
+            memcpy(dest + 12 + i * 4, &files[i], 4);
+        }
+        memcpy(dest + 12 + file_number * 4, &description_size, 4);
+        memcpy(dest + 16 + file_number * 4, description.c_str(), description_size);
     }
 };
 
