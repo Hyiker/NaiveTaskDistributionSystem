@@ -9,13 +9,17 @@
 #include <utility>
 #include <vector>
 #include <serializable.hpp>
+#include <cstring>
 
 /*
  * 负责实现任务信息的保存与序列化、反序列化
  */
 struct task : public serializable {
+private:
+    static uint32_t AUTO_GEN_ID_SER;
     /* 任务的id */
     uint32_t id;
+public:
     /* 任务文件的数量 */
     uint32_t file_number;
     /* 任务所需要的文件，因为可能有多个所以使用vector保存 */
@@ -26,10 +30,16 @@ struct task : public serializable {
     std::string description;
 
     /* struct_size组成: type+id+file_number+files+description_size+description */
-    task(int id, int file_number, std::vector<uint32_t> files, int description_size, std::string &description)
-            : id(id), file_number(file_number), files(std::move(files)), description_size(description_size),
-              description(description),
+    task(int file_number, std::vector<uint32_t> files, int description_size, std::string description)
+            : id(AUTO_GEN_ID_SER++), file_number(file_number), files(std::move(files)),
+              description_size(description_size),
+              description(std::move(description)),
               serializable(4 + 4 + 4 + file_number * 4 + 4 + description_size, data_type::TASK) {
+    }
+
+    task(const std::string &description) : id(AUTO_GEN_ID_SER++), description(description),
+                                           description_size(strlen(description.c_str())), file_number(0),
+                                           serializable(4 + 4 + 4 + 4 + strlen(description.c_str()), data_type::TASK) {
 
     }
 
@@ -48,6 +58,15 @@ struct task : public serializable {
         description = buffer;
     }
 
+    uint32_t get_id() const {
+        return id;
+    }
+
+    void add_file(uint32_t f) {
+        file_number++;
+        files.push_back(f);
+        struct_size = 4 + 4 + 4 + file_number * 4 + 4 + description_size;
+    }
 
     void serialize(char *const dest) override {
         int tp = static_cast<int>(type);
@@ -61,6 +80,9 @@ struct task : public serializable {
         memcpy(dest + 16 + file_number * 4, description.c_str(), description_size);
     }
 };
+
+uint32_t task::AUTO_GEN_ID_SER = 1;
+
 
 #endif //NAIVETASKDISTRIBUTIONSYSTEM_TASK_HPP
 
