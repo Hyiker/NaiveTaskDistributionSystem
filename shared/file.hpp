@@ -49,14 +49,14 @@ public:
         memcpy(&size, src + 8, 8);
         memcpy(FILE_SIGNATURE, src + 16, SHA_DIGEST_LENGTH);
         memcpy(data, src + 16 + SHA_DIGEST_LENGTH, size);
-//        if (!checksum()) {
-//            throw invalid_file("文件SHA1验证出错");
-//        }
+        if (!checksum()) {
+            throw invalid_file("文件SHA1验证出错");
+        }
     }
 
     file(const std::string &file_name) : id(AUTO_GEN_ID_SER++), serializable(-1, data_type::FILE) {
         std::ifstream ifs(file_name, std::ios::binary);
-        if (ifs.bad()) {
+        if (!ifs || ifs.bad()) {
             ifs.close();
             throw invalid_file("不正确的文件/文件格式");
         }
@@ -85,8 +85,12 @@ public:
         return cmp == 0;
     }
 
-    void save() {
-        std::ofstream ofs(std::to_string(id), std::ios::binary);
+    static void change_auto_gen(uint32_t now) {
+        AUTO_GEN_ID_SER = std::max(now + 1, AUTO_GEN_ID_SER);
+    }
+
+    void save(int type = 0) {
+        std::ofstream ofs("_" + std::to_string(id) + (type == 0 ? ".py" : "_.sav"), std::ios::binary);
         ofs.write(data, size);
         ofs.close();
     }

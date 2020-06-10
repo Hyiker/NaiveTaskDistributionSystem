@@ -16,6 +16,8 @@ class file_manager {
 private:
     std::map<uint32_t, std::shared_ptr<file>> files;
     static std::unique_ptr<file_manager> instance;
+    /* 用来验证文件是否存在的tester */
+    std::ifstream tester;
 
     file_manager() = default;
 
@@ -30,6 +32,7 @@ public:
     /* 向任务中添加文件并且返回对应的file_id */
     uint32_t add_file(const std::shared_ptr<file> &f) {
         files[f->get_id()] = f;
+        file::change_auto_gen(f->get_id());
         return f->get_id();
     }
 
@@ -56,6 +59,13 @@ public:
             return nullptr;
         }
         return files[id];
+    }
+
+    bool has_file_local(const std::string &filename) {
+        tester.open(filename);
+        bool res = tester.good();
+        tester.close();
+        return res;
     }
 
     std::shared_ptr<file> &operator[](int id) {

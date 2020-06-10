@@ -10,6 +10,8 @@
 #include <vector>
 #include <serializable.hpp>
 #include <cstring>
+#include <Python.h>
+#include <algorithm>
 
 /*
  * 负责实现任务信息的保存与序列化、反序列化
@@ -28,6 +30,8 @@ public:
     uint32_t description_size;
     /* 对于任务的描述 */
     std::string description;
+    /* 任务是否完成 */
+    bool finished{false};
 
     /* struct_size组成: type+id+file_number+files+description_size+description */
     task(int file_number, std::vector<uint32_t> files, int description_size, std::string description)
@@ -78,6 +82,41 @@ public:
         }
         memcpy(dest + 12 + file_number * 4, &description_size, 4);
         memcpy(dest + 16 + file_number * 4, description.c_str(), description_size);
+    }
+
+    static void change_auto_gen(uint32_t now) {
+        AUTO_GEN_ID_SER = std::max(now + 1, AUTO_GEN_ID_SER);
+    }
+
+    /*
+     * 运行_任务编号.py的任务文件
+     * 规定 把对应输出至.dat文件中
+     * 然后进行回传
+     * */
+    void run() {
+        if (!file_number) {
+            return;
+        }
+        Py_Initialize();
+        PyRun_SimpleString("import sys");
+        PyRun_SimpleString("sys.path.append('./')");
+        PyObject * module, *func, *ret;
+        for (uint32_t &f:files) {
+            PyObject * args = Py_BuildValue("(s)", ("_" + std::to_string(f) + ".sav").c_str());
+            printf("正在执行file_id=%d...\n", f);
+            module = PyImport_ImportModule(("_" + std::to_string(f)).c_str());
+            func = PyObject_GetAttrString(module, "task");
+            ret = PyEval_CallObject(func, args);
+            int code = -2;
+            PyArg_Parse(ret, "i", &code);
+            printf("任务%i执行完成，状态码:%i\n", f, code);
+            if (!code) {
+                printf("文件%d执行成功!\n", f);
+            } else {
+                printf("文件%d执行失败!\n", f);
+            }
+        }
+        Py_Finalize();
     }
 };
 

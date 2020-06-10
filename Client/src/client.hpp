@@ -6,6 +6,7 @@
 #define NAIVETASKDISTRIBUTIONSYSTEM_CLIENT_HPP
 
 #include <boost/asio.hpp>
+#include <boost/array.hpp>
 #include <request.hpp>
 #include <memory>
 
@@ -29,14 +30,31 @@ public:
     /*
      * 发送数据包，格式
      * 获取所有的数据信息
+     * 返回接收到的参数
      * */
-    void send(const std::shared_ptr<request> &req) {
+    std::unique_ptr<request> send(const std::shared_ptr<request> &req) {
         tcp::socket skt(service);
         skt.connect(ep);
         char data_with_size[req->size];
         req->serialize(data_with_size);
         skt.send(boost::asio::buffer(data_with_size, req->size));
         printf("发送大小%dB的数据\n", req->size);
+        return read(skt);
+    }
+
+    std::unique_ptr<request> read(tcp::socket &socket) {
+        boost::array<char, 1024> buf{};
+        boost::system::error_code erc;
+        socket.read_some(boost::asio::buffer(buf), erc);
+        std::unique_ptr<request> req{nullptr};
+        try {
+            req = std::make_unique<request>(buf.data());
+        } catch (const invalid_data_stream &e) {
+            printf("接收包时出现异常: %s", e.what());
+            return nullptr;
+        }
+        printf("receive pack size: %d\n", req->size);
+        return req;
     }
 };
 

@@ -10,7 +10,7 @@
 
 /* 可序列化类 */
 enum class data_type {
-    FILE = 0, TASK = 1
+    FILE = 0, TASK = 1,COMMAND=2
 };
 
 struct serializable {
