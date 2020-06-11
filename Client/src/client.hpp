@@ -9,6 +9,7 @@
 #include <boost/array.hpp>
 #include <request.hpp>
 #include <memory>
+#include <options.hpp>
 
 using boost::asio::ip::tcp;
 
@@ -34,7 +35,12 @@ public:
      * */
     std::unique_ptr<request> send(const std::shared_ptr<request> &req) {
         tcp::socket skt(service);
-        skt.connect(ep);
+        try {
+            skt.connect(ep);
+        } catch (const boost::wrapexcept<boost::system::system_error> &e) {
+            printf("无法连接至服务器\n");
+            return nullptr;
+        }
         char data_with_size[req->size];
         req->serialize(data_with_size);
         skt.send(boost::asio::buffer(data_with_size, req->size));
@@ -65,6 +71,17 @@ public:
         }
         printf("receive pack size: %d\n", req->size);
         return req;
+    }
+
+    bool test() {
+        try {
+            tcp::socket skt(service);
+            skt.connect(ep);
+            skt.close();
+        } catch (const boost::wrapexcept<boost::system::system_error> &e) {
+            return false;
+        }
+        return true;
     }
 };
 

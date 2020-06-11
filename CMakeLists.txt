@@ -9,7 +9,7 @@ link_directories(/usr/local/lib)
 link_libraries(ssl crypto)
 
 
-set(SHARED_LIBS shared/task.hpp shared/file.hpp shared/serializable.hpp shared/request.hpp shared/invalid_data_stream.hpp shared/invalid_file.hpp shared/task_manager.hpp shared/file_manager.hpp shared/command.hpp)
+set(SHARED_LIBS shared/task.hpp shared/file.hpp shared/serializable.hpp shared/request.hpp shared/invalid_data_stream.hpp shared/invalid_file.hpp shared/task_manager.hpp shared/file_manager.hpp shared/command.hpp shared/options.hpp)
 
 add_executable(Client Client/src/main.cpp ${SHARED_LIBS} shared/utils.hpp Client/src/client.hpp)
 add_executable(Server Server/src/main.cpp ${SHARED_LIBS} Server/src/server.hpp)

@@ -12,7 +12,7 @@
 #include <request.hpp>
 #include <file_manager.hpp>
 #include <task_manager.hpp>
-
+#include <options.hpp>
 
 class server {
 private:

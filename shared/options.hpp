@@ -1,0 +1,13 @@
+//
+// Created by SidHCH on 2020/6/11.
+//
+
+#ifndef NAIVETASKDISTRIBUTIONSYSTEM_OPTIONS_HPP
+#define NAIVETASKDISTRIBUTIONSYSTEM_OPTIONS_HPP
+
+#include <cinttypes>
+
+namespace options {
+    int READ_TIMEOUT = 200;
+}
+#endif //NAIVETASKDISTRIBUTIONSYSTEM_OPTIONS_HPP

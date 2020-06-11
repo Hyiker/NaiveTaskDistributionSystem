@@ -10,6 +10,7 @@
 #include <memory>
 #include <task.hpp>
 #include <map>
+#include <cstdio>
 
 /* 任务文件管理器，同样适用单例模式 */
 class file_manager {
@@ -61,6 +62,11 @@ public:
         return files[id];
     }
 
+    void remove(uint32_t fid) {
+        ::remove(("_" + std::to_string(fid) + ".py").c_str());
+        ::remove(("_" + std::to_string(fid) + ".sav").c_str());
+        files.erase(fid);
+    }
 
     bool has_file_local(const std::string &filename) {
         tester.open(filename);

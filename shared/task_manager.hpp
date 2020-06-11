@@ -98,6 +98,15 @@ public:
         return tasks;
     }
 
+    void remove_all() {
+        for (auto &t:tasks) {
+            for (auto &f:t.second->files) {
+                file_manager::get_instance()->remove(f);
+            }
+        }
+        tasks.clear();
+    }
+
     void save() {
         std::ofstream ofs(TASKS_SAVE_POS, std::ios::binary);
         char buf[1024];

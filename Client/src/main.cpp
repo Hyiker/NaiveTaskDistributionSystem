@@ -57,23 +57,41 @@ void upload_data(uint32_t i) {
         if (has(input, "exit")) {
             task_manager::get_instance()->save();
             exit(0);
+        } else if (has(input, "test")) {
+            if (c.test()) {
+                printf("有连接\n");
+            } else {
+                printf("连接失败\n");
+            }
         } else if (has(input, "fetch all in")) {
             cout << "fetching..." << endl;
             for (auto f:task_manager::get_instance()->get_task((uint32_t) atoi(buffer + 12))->files) {
                 std::shared_ptr<command> ft = std::make_shared<command>(FETCH_FILE, f);
-                shared_ptr<file> fcv = std::dynamic_pointer_cast<file>(c.send(std::make_shared<request>(ft))->sr);
+                auto ptr = c.send(std::make_shared<request>(ft));
+                if (!ptr) {
+                    break;
+                }
+                shared_ptr<file> fcv = std::dynamic_pointer_cast<file>(ptr->sr);
             }
             print_tasks();
         } else if (has(input, "fetch tasks")) {
             cout << "fetching..." << endl;
             std::shared_ptr<command> ft = std::make_shared<command>(FETCH_TASK);
-            shared_ptr<task> tsk = std::dynamic_pointer_cast<task>(c.send(std::make_shared<request>(ft))->sr);
+            auto ptr = c.send(std::make_shared<request>(ft));
+            if (!ptr) {
+                continue;
+            }
+            shared_ptr<task> tsk = std::dynamic_pointer_cast<task>(ptr->sr);
             task_manager::get_instance()->add_task(tsk);
             print_tasks();
         } else if (has(input, "fetch file")) {
             cout << "fetching..." << endl;
             std::shared_ptr<command> ft = std::make_shared<command>(FETCH_FILE, atoi(buffer + 11));
-            shared_ptr<file> fcv = std::dynamic_pointer_cast<file>(c.send(std::make_shared<request>(ft))->sr);
+            auto ptr = c.send(std::make_shared<request>(ft));
+            if (!ptr) {
+                continue;
+            }
+            shared_ptr<file> fcv = std::dynamic_pointer_cast<file>(ptr->sr);
             print_tasks();
         } else if (has(input, "clear")) {
             system("clear");
@@ -88,6 +106,9 @@ void upload_data(uint32_t i) {
             } else {
                 cout << "不存在对应的task" << endl;
             }
+        } else if (has(input, "remove all")) {
+            task_manager::get_instance()->remove_all();
+            print_tasks();
         } else if (has(input, "upload data")) {
             upload_data(atoi(buffer + 11));
         } else {
