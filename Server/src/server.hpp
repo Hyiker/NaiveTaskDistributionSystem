@@ -28,7 +28,7 @@ private:
         PyObject * args = PyTuple_New(1);
         for (auto &tsk:task_manager::get_instance()->list_tasks()) {
             for (auto &f:tsk.second->files) {
-                PyList_Append(list, Py_BuildValue("i", f));
+                PyList_Append(list, Py_BuildValue("s", ("_" + std::to_string(f) + "_.sav").c_str()));
             }
         }
         module = PyImport_ImportModule("merge_all");
@@ -47,12 +47,22 @@ private:
     }
 
     void read(boost::asio::ip::tcp::socket &socket) {
-        char buffer[1024];
+        char buffer[1024 * 1024 * 3];
         boost::system::error_code erc;
-        socket.read_some(boost::asio::buffer(buffer), erc);
-        std::unique_ptr<request> req{nullptr};
+        // 读取四字节的魔法值验证
+        boost::asio::read(socket, boost::asio::buffer(buffer), boost::asio::transfer_exactly(4), erc);
+        if (!request::validate_header(buffer)) {
+            printf("头部魔法值验证错误");
+            socket.read_some(boost::asio::buffer(buffer), erc);
+            return;
+        }
+        uint32_t size;
+        boost::asio::read(socket, boost::asio::buffer(buffer), boost::asio::transfer_exactly(4), erc);
+        memcpy(&size, buffer, 4);
+        boost::asio::read(socket, boost::asio::buffer(buffer), boost::asio::transfer_exactly(size - 8), erc);
+        std::unique_ptr<request> req{std::make_unique<request>()};
         try {
-            req = std::make_unique<request>(buffer, 1);
+            req->deserialize(buffer, size, 0);
         } catch (const invalid_data_stream &e) {
             printf("接收包时出现异常: %s\n", e.what());
             return;
@@ -63,6 +73,7 @@ private:
             send(socket, std::make_shared<command>(1));
         }
         if (task_manager::get_instance()->update_done()) {
+            printf("merging...");
             merge_data();
         }
         printf("receive pack size: %d\n", req->size);
@@ -92,6 +103,7 @@ private:
                 if (tsk) {
                     send(socket, task_manager::get_instance()->get_task());
                     printf("回传id=%d任务", tsk->get_id());
+                    task_manager::get_instance()->set_fetched(tsk->get_id());
                 } else {
                     send(socket, std::make_shared<command>(NO_MORE_TASK));
                     printf("无任务");

@@ -43,14 +43,24 @@ public:
     }
 
     std::unique_ptr<request> read(tcp::socket &socket) {
-        boost::array<char, 1024> buf{};
         boost::system::error_code erc;
-        socket.read_some(boost::asio::buffer(buf), erc);
-        std::unique_ptr<request> req{nullptr};
+        char buffer[1024 * 1024 * 3];
+        // 读取四字节的魔法值验证
+        boost::asio::read(socket, boost::asio::buffer(buffer), boost::asio::transfer_exactly(4), erc);
+        if (!request::validate_header(buffer)) {
+            printf("头部魔法值验证错误");
+            socket.read_some(boost::asio::buffer(buffer), erc);
+            return nullptr;
+        }
+        uint32_t size;
+        boost::asio::read(socket, boost::asio::buffer(buffer), boost::asio::transfer_exactly(4), erc);
+        memcpy(&size, buffer, 4);
+        boost::asio::read(socket, boost::asio::buffer(buffer), boost::asio::transfer_exactly(size - 8), erc);
+        std::unique_ptr<request> req{std::make_unique<request>()};
         try {
-            req = std::make_unique<request>(buf.data());
+            req->deserialize(buffer, size, 0);
         } catch (const invalid_data_stream &e) {
-            printf("接收包时出现异常: %s", e.what());
+            printf("接收包时出现异常: %s\n", e.what());
             return nullptr;
         }
         printf("receive pack size: %d\n", req->size);

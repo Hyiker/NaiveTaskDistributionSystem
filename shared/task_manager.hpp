@@ -51,11 +51,16 @@ public:
             for (auto &f:tsk.second->files) {
                 ifs.open("_" + std::to_string(f) + "_.sav");
                 done = done && ifs.good();
+                ifs.close();
             }
             tsk.second->finished = done;
             all_done = all_done && done;
         }
         return all_done;
+    }
+
+    void set_fetched(uint32_t id, bool fetched = true) {
+        tasks[id]->fetched = fetched;
     }
 
     uint32_t add_task(const std::shared_ptr<task> &tsk) {
@@ -81,10 +86,11 @@ public:
 
     std::shared_ptr<task> get_task() {
         for (auto &task : tasks) {
-            if (!task.second->finished) {
+            if (!task.second->finished && !task.second->fetched) {
                 return task.second;
             }
         }
+        printf("无可用的任务XP\n");
         return nullptr;
     }
 

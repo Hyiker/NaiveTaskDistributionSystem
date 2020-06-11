@@ -61,6 +61,7 @@ public:
         return files[id];
     }
 
+
     bool has_file_local(const std::string &filename) {
         tester.open(filename);
         bool res = tester.good();

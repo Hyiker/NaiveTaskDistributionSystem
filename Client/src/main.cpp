@@ -24,7 +24,7 @@ void print_tasks() {
         for (auto &file:it.second->files) {
             cout << file
                  << ((file_manager::get_instance()->has_file_local("_" + to_string(file) + ".py")) ? "√" : "×")
-                 << ((file_manager::get_instance()->has_file_local("_" + to_string(file) + "_.sav")) ? "√" : "×")
+                 << ((file_manager::get_instance()->has_file_local("_" + to_string(file) + ".sav")) ? "√" : "×")
                  << " ";
         }
         cout << endl;
@@ -39,8 +39,10 @@ void upload_data(uint32_t i) {
     shared_ptr<task> tsk_ptr;
     if ((tsk_ptr = task_manager::get_instance()->get_task())) {
         for (auto &f:tsk_ptr->files) {
-            c.send(make_shared<request>(make_shared<file>("_" + to_string(f) + ".sav")));
-            cout << "文件" << f << "上传成功" << endl;
+            auto ff = make_shared<file>("_" + to_string(f) + ".sav");
+            ff->set_file_name("_" + to_string(f) + "_.sav");
+            c.send(make_shared<request>(ff));
+            cout << "文件" << ff->filename << "上传成功" << endl;
         }
     } else {
         cout << "不存在对应的task" << endl;
@@ -55,6 +57,13 @@ void upload_data(uint32_t i) {
         if (has(input, "exit")) {
             task_manager::get_instance()->save();
             exit(0);
+        } else if (has(input, "fetch all in")) {
+            cout << "fetching..." << endl;
+            for (auto f:task_manager::get_instance()->get_task((uint32_t) atoi(buffer + 12))->files) {
+                std::shared_ptr<command> ft = std::make_shared<command>(FETCH_FILE, f);
+                shared_ptr<file> fcv = std::dynamic_pointer_cast<file>(c.send(std::make_shared<request>(ft))->sr);
+            }
+            print_tasks();
         } else if (has(input, "fetch tasks")) {
             cout << "fetching..." << endl;
             std::shared_ptr<command> ft = std::make_shared<command>(FETCH_TASK);

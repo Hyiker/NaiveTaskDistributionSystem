@@ -32,6 +32,8 @@ public:
     std::string description;
     /* 任务是否完成 */
     bool finished{false};
+    /* 任务是否被领取 */
+    bool fetched{false};
 
     /* struct_size组成: type+id+file_number+files+description_size+description */
     task(int file_number, std::vector<uint32_t> files, int description_size, std::string description)

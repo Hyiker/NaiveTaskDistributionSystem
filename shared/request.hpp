@@ -22,8 +22,43 @@ struct request {
 
     }
 
+    /* 零初始化 */
+    request() : sr{nullptr}, size{0}{
+
+    }
+
     /* 传入带header的数据流 */
     explicit request(const char *src, int type = 0) {
+        deserialize(src, type);
+    }
+
+    /* 反序列化 */
+    void deserialize(const char *src, uint32_t sz, int type) {
+        uint32_t tmp;
+        size = sz;
+        memcpy(&tmp, src, 4);
+        switch (tmp) {
+            case static_cast<uint32_t>(data_type::TASK):
+                sr = std::make_shared<task>(src, size - 8);
+                printf("接收到task,其description字段为%s\n", std::dynamic_pointer_cast<task>(sr)->description.c_str());
+                task_manager::get_instance()->add_task(std::dynamic_pointer_cast<task>(sr));
+                break;
+            case static_cast<uint32_t>(data_type::FILE):
+                sr = std::make_shared<file>(src, size - 8);
+                printf("接收到file,其大小为%lluB\n", std::dynamic_pointer_cast<file>(sr)->size);
+                file_manager::get_instance()->add_file(std::dynamic_pointer_cast<file>(sr));
+                std::dynamic_pointer_cast<file>(sr)->save(type);
+                break;
+            case static_cast<uint32_t>(data_type::COMMAND):
+                sr = std::make_shared<command>(src);
+                printf("接收到一条命令\n");
+                break;
+            default:
+                throw invalid_data_stream("未识别的序列化类型");
+        }
+    }
+
+    void deserialize(const char *src, int type) {
         uint32_t tmp;
         memcpy(&tmp, src, 4);
         /* 验证 */
@@ -31,26 +66,13 @@ struct request {
             throw invalid_data_stream("头部魔法值验证错误");
         }
         memcpy(&size, src + 4, 4);
-        memcpy(&tmp, src + 8, 4);
-        switch (tmp) {
-            case static_cast<uint32_t>(data_type::TASK):
-                sr = std::shared_ptr<serializable>(new task(src + 8, size - 8));
-                printf("接收到task,其description字段为%s\n", std::dynamic_pointer_cast<task>(sr)->description.c_str());
-                task_manager::get_instance()->add_task(std::dynamic_pointer_cast<task>(sr));
-                break;
-            case static_cast<uint32_t>(data_type::FILE):
-                sr = std::shared_ptr<serializable>(new file(src + 8, size - 8));
-                printf("接收到file,其大小为%lluB\n", std::dynamic_pointer_cast<file>(sr)->size);
-                file_manager::get_instance()->add_file(std::dynamic_pointer_cast<file>(sr));
-                std::dynamic_pointer_cast<file>(sr)->save(type);
-                break;
-            case static_cast<uint32_t>(data_type::COMMAND):
-                sr = std::shared_ptr<serializable>(new command(src + 8));
-                printf("接收到一条命令\n");
-                break;
-            default:
-                throw invalid_data_stream("未识别的序列化类型");
-        }
+        deserialize(src + 8, size, type);
+    }
+
+    static bool validate_header(const char *src) {
+        uint32_t header;
+        memcpy(&header, src, 4);
+        return header == HEADER_MAGIC;
     }
 
     /* 序列化: 4字节header 4字节size size大小的结构体 */

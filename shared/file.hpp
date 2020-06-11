@@ -13,8 +13,9 @@
 #include <openssl/sha.h>
 #include <cstring>
 
-/* 最大允许10KB的文件大小 */
-const int MAX_FILE_SIZE = 1024 * 10;
+/* 最大允许3MB的文件大小 */
+const int MAX_FILE_SIZE = 3 * 1024 * 10 * 100;
+const int MAX_FILENAME_LEN = 64;
 
 /* 任务对象 */
 struct file : public serializable {
@@ -30,12 +31,15 @@ public:
     u_char FILE_SIGNATURE[SHA_DIGEST_LENGTH]{};
     /* 后可变长的大小，具体文件的字节流 */
     char data[MAX_FILE_SIZE];
+    /* 是否指定文件名，若不指定则为0 */
+    uint32_t file_name_len{0};
+    /* 指定的文件名 */
+    char filename[MAX_FILENAME_LEN]{'\0'};
 
-    /* struct_size组成：type+id+size+FILE_SIGNATURE+data */
-    file(uint64_t size, const char *SHA1, char *data) : serializable(4 + 4 + 8 + SHA_DIGEST_LENGTH + size,
-                                                                     data_type::FILE),
-                                                        id(AUTO_GEN_ID_SER++),
-                                                        size(size) {
+    /* struct_size组成：type+id+size+FILE_SIGNATURE+data+file_name_len+filename */
+    file(uint64_t size, const char *SHA1, char *data) : file_name_len{0}, serializable(
+            4 + 4 + 8 + SHA_DIGEST_LENGTH + size + 4 + 0,
+            data_type::FILE), id(AUTO_GEN_ID_SER++), size(size) {
         if (size > MAX_FILE_SIZE) {
             printf("超出文件大小限制，最大为%dKB\n", MAX_FILE_SIZE / 1024);
             throw invalid_file("超出文件大小限制");
@@ -49,6 +53,10 @@ public:
         memcpy(&size, src + 8, 8);
         memcpy(FILE_SIGNATURE, src + 16, SHA_DIGEST_LENGTH);
         memcpy(data, src + 16 + SHA_DIGEST_LENGTH, size);
+        memcpy(&file_name_len, src + 16 + SHA_DIGEST_LENGTH + size, 4);
+        if (file_name_len) {
+            memcpy(filename, src + 20 + SHA_DIGEST_LENGTH + size, file_name_len);
+        }
         if (!checksum()) {
             throw invalid_file("文件SHA1验证出错");
         }
@@ -69,7 +77,7 @@ public:
         size = real_size;
         memcpy(data, buffer, real_size);
         ::SHA1(reinterpret_cast<const unsigned char *>(data), size, FILE_SIGNATURE);
-        struct_size = 4 + 4 + 8 + SHA_DIGEST_LENGTH + size;
+        struct_size = 4 + 4 + 8 + SHA_DIGEST_LENGTH + size + 4;
         ifs.close();
     }
 
@@ -85,12 +93,22 @@ public:
         return cmp == 0;
     }
 
+    void set_file_name(const std::string &str) {
+        uint32_t file_name_len_ = strlen(str.c_str());
+        if (!file_name_len) {
+            struct_size = struct_size + file_name_len_ - file_name_len;
+            file_name_len = file_name_len_;
+        }
+        strcpy(filename, str.c_str());
+    }
+
     static void change_auto_gen(uint32_t now) {
         AUTO_GEN_ID_SER = std::max(now + 1, AUTO_GEN_ID_SER);
     }
 
     void save(int type = 0) {
-        std::ofstream ofs("_" + std::to_string(id) + (type == 0 ? ".py" : "_.sav"), std::ios::binary);
+        std::ofstream ofs(file_name_len ? filename : ("_" + std::to_string(id) + (type == 0 ? ".py" : "_.sav")).c_str(),
+                          std::ios::binary);
         ofs.write(data, size);
         ofs.close();
     }
@@ -103,9 +121,12 @@ public:
         memcpy(dest + 8, &size, 8);
         memcpy(dest + 16, FILE_SIGNATURE, SHA_DIGEST_LENGTH);
         memcpy(dest + 16 + SHA_DIGEST_LENGTH, data, size);
+        memcpy(dest + 16 + SHA_DIGEST_LENGTH + size, &file_name_len, 4);
+        if (file_name_len) { memcpy(dest + 20 + SHA_DIGEST_LENGTH + size, filename, file_name_len); }
     }
 };
 
 uint32_t file::AUTO_GEN_ID_SER = 1;
+
 
 #endif //NAIVETASKDISTRIBUTIONSYSTEM_FILE_HPP
